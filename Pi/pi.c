@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
 
     // Usage of arguments
     // n will be the first argument, defaults to 10 000
-    if (argc > 0) {
+    if (argc > 1) {
         n = atoi(argv[1]);
     }
     if (rank == 0) {
