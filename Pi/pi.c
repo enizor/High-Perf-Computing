@@ -21,12 +21,6 @@ float trapeze_sequential(float a, float b, int n) {
     return integral;
 }
 
-float trapeze_parallel(float a, float b, int n, int size) {
-
-
-    return integral;
-}
-
 int main(int argc, char *argv[]) {
     float a = 0, b = 1;    // points gauche et droits
     int n = 10000;             // nombre de trapèzes, divisible par size !!!
@@ -37,12 +31,10 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); /* get current process id */
     MPI_Comm_size(MPI_COMM_WORLD, &size); /* get number of processes */
 
-    printf("%s\n", argv[1]);
     // Usage of arguments
     // n will be the first argument, defaults to 10 000
     if (argc > 0) {
         n = atoi(argv[1]);
-        printf("%d",n);
     }
     if (rank == 0) {
         float integral, sub_integral; // result
