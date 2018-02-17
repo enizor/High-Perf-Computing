@@ -1,0 +1,206 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Programming/Coding Assignment
+% LaTeX Template
+%
+% This template has been downloaded from:
+% http://www.latextemplates.com
+%
+% Original author:
+% Ted Pavlic (http://www.tedpavlic.com)
+%
+% Note:
+% The \lipsum[#] commands throughout this template generate dummy text
+% to fill the template out. These commands should all be removed when
+% writing assignment content.
+%
+% This template uses a Perl script as an example snippet of code, most other
+% languages are also usable. Configure them in the "CODE INCLUSION
+% CONFIGURATION" section.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass{article}
+
+\usepackage{fancyhdr} % Required for custom headers
+\usepackage{lastpage} % Required to determine the last page for the footer
+\usepackage{extramarks} % Required for headers and footers
+\usepackage[usenames,dvipsnames]{color} % Required for custom colors
+\usepackage{graphicx} % Required to insert images
+\usepackage{listings} % Required for insertion of code
+\usepackage{courier} % Required for the courier font
+\usepackage{lipsum} % Used for inserting dummy 'Lorem ipsum' text into the template
+\usepackage{framed}
+\usepackage[utf8]{inputenc}
+\usepackage{stmaryrd}
+\usepackage{algpseudocode}
+\usepackage{amsthm}
+\usepackage{dsfont}
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in
+
+\linespread{1.1} % Line spacing
+
+% Set up the header and footer
+\pagestyle{fancy}
+\lhead{\hmwkAuthorName} % Top left header
+\chead{\hmwkTitle} % Top center head
+\rhead{\firstxmark} % Top right header
+\lfoot{\lastxmark} % Bottom left footer
+\cfoot{} % Bottom center footer
+\rfoot{Page\ \thepage\ sur\ \protect\pageref{LastPage}} % Bottom right footer
+\renewcommand\headrulewidth{0.4pt} % Size of the header rule
+\renewcommand\footrulewidth{0.4pt} % Size of the footer rule
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+
+%----------------------------------------------------------------------------------------
+%	CODE INCLUSION CONFIGURATION
+%----------------------------------------------------------------------------------------
+
+\definecolor{MyDarkGreen}{rgb}{0.0,0.4,0.0} % This is the color used for comments
+\lstloadlanguages{C} % Load Perl syntax for listings, for a list of other languages supported see: ftp://ftp.tex.ac.uk/tex-archive/macros/latex/contrib/listings/listings.pdf
+\lstset{language=C, % Use Perl in this example
+        frame=single, % Single frame around code
+        basicstyle=\small\ttfamily, % Use small true type font
+        keywordstyle=[1]\color{Blue}\bf, % Perl functions bold and blue
+        keywordstyle=[2]\color{Purple}, % Perl function arguments purple
+        keywordstyle=[3]\color{Blue}\underbar, % Custom functions underlined and blue
+        identifierstyle=, % Nothing special about identifiers
+        commentstyle=\usefont{T1}{pcr}{m}{sl}\color{MyDarkGreen}\small, % Comments small dark green courier font
+        stringstyle=\color{Purple}, % Strings are purple
+        showstringspaces=false, % Don't put marks in string spaces
+        tabsize=5, % 2 spaces per tab
+        %
+        % Put standard Perl functions not included in the default language here
+        morekeywords={f, sequantial_computation, parallel_computation},
+        morecomment=[l][\color{Blue}]{...}, % Line continuation (...) like blue comment
+        numbers=left, % Line numbers on left
+        firstnumber=1, % Line numbers start with line 1
+        numberstyle=\tiny\color{Blue}, % Line numbers are blue and small
+        stepnumber=5 % Line numbers go in steps of 5
+}
+
+% Creates a new command to include a perl script, the first parameter is the filename of the script (without .pl), the second parameter is the caption
+\newcommand{\cscript}[2]{
+\begin{itemize}
+\item[]\lstinputlisting[caption=#2,label=#1]{#1.pl}
+\end{itemize}
+}
+
+
+\newcommand{\problemAnswer}[1]{ % Defines the problem answer command with the content as the only argument
+\noindent\framebox[\columnwidth][c]{\begin{minipage}{0.98\columnwidth}#1\end{minipage}} % Makes the box around the problem answer and puts the content inside
+}
+
+%----------------------------------------------------------------------------------------
+%	NAME AND CLASS SECTION
+%----------------------------------------------------------------------------------------
+
+\newcommand{\hmwkTitle}{Théorèmes sur les dépendances d'instructions} % Assignment title
+\newcommand{\hmwkClass}{High Performance Computing} % Course/class
+\newcommand{\hmwkAuthorName}{Rémi Garde} % Your name
+%----------------------------------------------------------------------------------------
+%	TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\title{
+\LARGE{\textbf{\hmwkClass}}\\
+\vspace{0.5in}
+\large{\textbf{\hmwkTitle}}
+\vspace{3in}
+}
+
+\author{\textbf{\hmwkAuthorName}}
+\date{Février 2018} % Insert date here if you want it to appear below your name
+
+\newtheorem*{theorem}{Théorème}
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+\maketitle
+% \newpage
+% \tableofcontents
+\newpage
+
+\subsection*{Parallélisation d'une boucle}
+
+
+\begin{theorem}
+Une boucle de programme est parallélisable si et seulement si deux instructions associées à des itérations différentes ne présentent aucune dépendances de données ou de sorties.
+\end{theorem}
+
+\begin{proof}[Preuve]
+Soit $B$ une boucle de programme . Par commodité, à chaque itération $i \in \llbracket 1,n \rrbracket$ de $B$ nous associons une instruction unique $I_i$, combinaison de toutes les instructions de cette itération.
+Montrons que $B$ est parallélisable si et seulement si $I_i$ et $I_j$ n'ont aucunes dépendance de données ou de sorties pour $i \neq j$.
+
+$\Rightarrow$ Supposons $B$ parallélisable, i.e. son output ne dépend pas de l'ordre dans lequel l'itération est effectuée.
+
+Supposons qu'il existe une dépendance de données: $\exists (i,j), In(I_i) \cap Out(I_j) \neq \emptyset$.
+Dans ce cas,$Out(I_i)$ va dépendre de $In(I_i)$, donc de $Out(I_j)$.
+La sortie de $I_i$ dépend de l'exécution ou non de $I_j$ : c'est impossible.
+
+Supposons qu'il existe une dépendance de sorties. $\exists (i,j), Out(I_i) \cap Out(I_j) \neq \emptyset$.
+Dans ce cas, la sortie de $I_i$ sera (au moins en partie) écrasée par l'exécution de $I_j$, et réciproquement. On ne eut intervertir leur ordre sans changer la sortie globale. C'est impossible de même: il ne peut y avoir ni dépendance d'entrées ni de sorties.
+\\
+$\Leftarrow$ Supposons qu'il n'y ait aucune dépendance dans $B$.
+Soit $o$ un output : $o \in \bigcup_{i} Out(I_i)$.
+$\exists! k, o \in Out(I_k)$.
+Par indépendance de sorties, $k$ est unique.
+L'état de $o$ en sortie de $B$ ne dépend donc que $In(I_k)$.
+Par indépendance de données, $In(I_k)$ ne dépend d'aucune sortie des autres instructions. Donc $o$ ne dépend pas de l'exécution d'une autre instruction, i.e. $o$ ne dépend pas de l'ordre d'exécution.
+$B$ est donc parallélisable.
+\end{proof}
+
+\begin{theorem}
+Les deux boucles imbriquées d'indices $i$ et $j$ sont permutables si et seulement si il n'existe pas de dépendances de données ou de sorties entre des instances $(i+k_i, j-k_j)$ ou $(i-k_i, j+k_j)$ et l'instance $(i,j)$, $(k_i, k_j) \in \mathds{N}^*$
+\end{theorem}
+
+\begin{proof}[Preuve]
+La permutation des boucles ne va changer que partiellement l'ordre d'exécution. Pour chaque instance $(i,j)$, on note
+\begin{itemize}
+\item $A_{1}(i,j)$ les instances exécutées après l'instance $(i,j)$ lorsque l'on utilise l'ordre d'exécution $(i,j)$ : ce sont les instances $(p,q)$ avec $p>i$ ou $p = i, q >j$
+\item $A_{2}(i,j)$ les instances exécutées après l'instance $(i,j)$ lorsque l'on utilise l'ordre d'exécution $(j,i)$ ce sont les instances $(p,q)$ avec $q>j$ ou $p > i, q = j$
+\item $B_{1}(i,j)$ les instances exécutées avant l'instance $(i,j)$ lorsque l'on utilise l'ordre d'exécution $(i,j)$ : ce sont les instances $(p,q)$ avec $p<i$ ou $p = i, q <j$
+\item $B_{2}(i,j)$ les instances exécutées avant l'instance $(i,j)$ lorsque l'on utilise l'ordre d'exécution $(j,i)$ ce sont les instances $(p,q)$ avec $q<j$ ou $p < i, q = j$
+\end{itemize}
+
+On peut permuter si et seulement si, pour chaque instance $(i,j)$, il n'y a aucune dépendance de données ou de sorties entre $(i,j)$ et les instances qui changent d'ordre avec $(i,j)$ lors de la permutation.
+Ces instances sont $A_{1}(i,j) \cap B_{2}(i,j)$ et $A_{2}(i,j) \cap B_{1}(i,j)$.
+
+Considérons l'instance $(p,q)$, $I_{p,q} \in A_{1}(i,j) \cap B_{2}(i,j)$.
+
+$$
+\left\{
+    \begin{array}{ll}
+        p > i & \mbox{ou } p = i, q > j \\
+        q < j & \mbox{ou } p < i, q = j
+    \end{array}
+\right.
+\mathrm{soit} ~~
+\left\{
+    \begin{array}{l}
+        p > i  \\
+        q < j
+    \end{array}
+\right.
+\mathrm{ou~encore} ~~
+\exists (k_i, k_j) \in \mathds{N}^*, (p,q) = (i+k_i, j-k_j)
+$$
+
+De la même façon, $A_{2}(i,j) \cap B_{1}(i,j)$ donne $\exists (k_i, k_j) \in \mathds{N}^*, (p,q) = (i-k_i, j+k_j)$.
+
+Donc les boucles sont permutables si et seulement si, $\forall (i,j), \forall (k_i, k_j) \in \mathds{N}^*$, il n'y a aucune  indépendance de données entre les instances $(i,j)$ et $(i-k_i, j+k_j)$ ou $(i+k_i, j-k_j)$.
+
+\end{proof}
+
+\end{document}
