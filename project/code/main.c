@@ -1,7 +1,9 @@
 #include "matrix.h"
 #include "vector.h"
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
+#include <math.h>
 #include <mpi.h>
 
 int main(int argc, char *argv[])
@@ -43,14 +45,23 @@ int main(int argc, char *argv[])
     struct Matrix mtx = load_matrix(argv[3], first_row, num_rows);
     struct Vector vec = load_vector(argv[4], first_row, num_rows);
 
-    //Create local and global x vector
+    // Create local and global x vector
     struct Vector x_local = create_vector(num_rows);
     struct Vector x_global = create_vector(dim_col);
 
-    // Jacobi method
-    for (int lol = 0; lol < 15; lol++)
+    // Residual analysis booleans
+    // Contains true if x_i is still really near its limit
+    _Bool *residues = calloc(num_rows, sizeof(_Bool));
+    for (int i = 0 ; i < num_rows ; i++)
     {
-
+        residues[i] = false;
+    }
+    _Bool run = true;
+    int iterations = 0;
+    // Jacobi method
+    while (run)
+    {
+        // print_vector(x_local);
         // Send and receive each value of the global X
         for (int i = 0; i < dim_col; i++)
         {
@@ -77,24 +88,72 @@ int main(int argc, char *argv[])
                          MPI_STATUS_IGNORE);
             }
         }
-        print_vector(x_global);
 
         // Calculate the next iteration of x_local
-        // x2_i += 1/a_ii(b_i-sum(a_ijx1_j))
         for (int i = 0; i < num_rows; i++)
         {
-            x_local.vector[i] = 0;
-            for (int j = 0; j < dim_col; j++)
+            // Calculate the next iteration only if
+            // the residue indicates it is far from its limit
+            if (!residues[i])
             {
-                if (i + first_row != j)
+                x_local.vector[i] = 0;
+                for (int j = 0; j < dim_col; j++)
                 {
-                    x_local.vector[i] += mtx.matrix[i][j] * x_global.vector[j];
+                    if (i + first_row != j)
+                    {
+                        x_local.vector[i] += mtx.matrix[i][j] * x_global.vector[j];
+                    }
+                }
+                x_local.vector[i] = (1 / mtx.matrix[i][i + first_row]) * (vec.vector[i] - x_local.vector[i]);
+
+                // Residual analysis
+                if (fabs(x_local.vector[i]-x_global.vector[first_row+i]) < 1e-6)
+                {
+                    residues[i] = true;
                 }
             }
-            x_local.vector[i] = (1 / mtx.matrix[i][i + first_row]) * (vec.vector[i] - x_local.vector[i]);
         }
+
+        // Test for whole convergence
+        // The root process receives a finishing ping from each other processes
+        // and replies with a continue or stop order
+        bool local_continue = false;
+        for (int i = 0; i < num_rows; i++)
+        {
+            local_continue |= !residues[i];
+        }
+        if (rank == 0)
+        {
+            bool global_continue = local_continue;
+            for (int p = 1; p < mpi_size; p++)
+            {
+                _Bool recv = 0;
+                MPI_Recv(&recv, 1, MPI_C_BOOL, p, 0, MPI_COMM_WORLD,
+                         MPI_STATUS_IGNORE);
+                global_continue |= recv;
+            }
+            for (int p = 1; p < mpi_size; p++)
+            {
+                MPI_Send(&global_continue, 1, MPI_C_BOOL, p, 0, MPI_COMM_WORLD);
+            }
+            run = global_continue;
+        }
+        else
+        {
+            MPI_Send(&local_continue, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD);
+            MPI_Recv(&run, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD,
+              MPI_STATUS_IGNORE);
+        }
+        iterations++;
     }
-    print_vector(x_global);
+    if (rank==0)
+    {
+        printf("Converged in %d iterations\nSolution found:\n",iterations);
+        print_vector(x_global);
+    }
+    free(recv_count);
+    free(first_rows);
+    free(residues);
     destruct_vector(&x_local);
     destruct_vector(&x_global);
     destruct_vector(&vec);
