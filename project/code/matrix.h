@@ -14,7 +14,7 @@ struct Matrix create_matrix(int dim_row, int dim_col);
 // Matrix destruction
 void destruct_matrix(struct Matrix *mtx);
 
-struct Matrix load_matrix(char* path, int first_row, int num_rows);
+struct Matrix load_matrix(char *path, int first_row, int num_rows);
 
 void print_matrix(struct Matrix mtx);
 

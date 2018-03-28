@@ -50,14 +50,13 @@ struct Matrix load_matrix(char *path, int first_row, int num_rows)
     struct Matrix mtx = create_matrix(num_rows, dim_col);
 
     // skip the first rows
-    for (int i = 0; i < first_row+1; i++)
+    for (int i = 0; i < first_row + 1; i++)
     {
         char c;
         do
         {
             c = fgetc(fp);
-        }
-        while (c != '\n');
+        } while (c != '\n');
     }
 
     // read the required rows and fill the matrix

@@ -6,7 +6,7 @@
 struct Vector create_vector(int dim)
 {
     struct Vector vec;
-    vec.dim= dim;
+    vec.dim = dim;
 
     // Vector initialisation
     vec.vector = calloc(dim, sizeof(double));
@@ -38,20 +38,19 @@ struct Vector load_vector(char *path, int first_row, int num_rows)
     struct Vector vec = create_vector(num_rows);
 
     // skip the first rows
-    for (int i = 0; i < first_row+1; i++)
+    for (int i = 0; i < first_row + 1; i++)
     {
         char c;
         do
         {
             c = fgetc(fp);
-        }
-        while (c != '\n');
+        } while (c != '\n');
     }
 
     // read the required rows and fill the vector
     for (int i = 0; i < num_rows; i++)
     {
-      fscanf(fp, "%lf", &vec.vector[i]);
+        fscanf(fp, "%lf", &vec.vector[i]);
     }
 
     fclose(fp);
@@ -64,7 +63,7 @@ void print_vector(struct Vector vec)
     printf("[ ");
     for (int i = 0; i < vec.dim; i++)
     {
-      printf("%.3e ", vec.vector[i]);
+        printf("%.3e ", vec.vector[i]);
     }
     printf("]\n");
 }

@@ -13,7 +13,7 @@ struct Vector create_vector(int dim);
 // Vector destruction
 void destruct_vector(struct Vector *vec);
 
-struct Vector load_vector(char* path, int first_row, int num_rows);
+struct Vector load_vector(char *path, int first_row, int num_rows);
 
 void print_vector(struct Vector vec);
 
