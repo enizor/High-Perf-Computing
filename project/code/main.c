@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
     // Dummy request required for async send
     MPI_Request req;
 
+    // Arguments handling
     if (argc > 5)
     {
         dim_row = atoi(argv[1]);
@@ -29,21 +30,19 @@ int main(int argc, char *argv[])
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
-    int *recv_count = calloc(mpi_size, sizeof(int)),
-        *first_rows = calloc(mpi_size, sizeof(int));
-
-    // Calculate the number of rows for each processor, and their first row
-    for (int p = 0; p < mpi_size; p++)
+    // Calculate the number of rows, depending on the processor rank
+    num_rows = dim_row / mpi_size;
+    first_row = rank * (dim_row / mpi_size);
+    if (rank < dim_row % mpi_size)
     {
-        // Each processor gets dim_rows/mpi_size, +1 to account for the remainder
-        num_rows = p < dim_row % mpi_size ? dim_row / mpi_size + 1 : dim_row / mpi_size;
-        recv_count[p] = num_rows;
-
-        first_rows[p] = first_row;
-        first_row += num_rows;
+        num_rows++;
+        first_row += rank;
     }
-    first_row = first_rows[rank];
-    num_rows = recv_count[rank];
+    else
+    {
+        first_row += dim_row % mpi_size;
+    }
+
     // Load the (local) matrix and vector from the file
     struct Matrix mtx = load_matrix(argv[3], first_row, num_rows);
     struct Vector vec = load_vector(argv[4], first_row, num_rows);
@@ -115,6 +114,8 @@ int main(int argc, char *argv[])
             if (!residues[i])
             {
                 x_local.vector[i] = 0;
+
+                // Actual matrix-vector product
                 for (int j = 0; j < dim_col; j++)
                 {
                     if (i + first_row != j)
@@ -122,6 +123,7 @@ int main(int argc, char *argv[])
                         x_local.vector[i] += mtx.matrix[i][j] * x_global.vector[j];
                     }
                 }
+                // final calculations
                 x_local.vector[i] = (1 / mtx.matrix[i][i + first_row]) * (vec.vector[i] - x_local.vector[i]);
 
                 // Residual analysis
@@ -133,16 +135,19 @@ int main(int argc, char *argv[])
         }
 
         // Test for whole convergence
-        // The root process receives a finishing ping from each other processes
-        // and replies with a continue or stop order
+        // Local "Should I continue to iterate?"
         bool local_continue = false;
         for (int i = 0; i < num_rows; i++)
         {
             local_continue |= !residues[i];
         }
+
+        // The root process receives a finishing ping from each other processes
+        // and replies with a continue or stop order
         if (rank == 0)
         {
             bool global_continue = local_continue;
+            // Receive all continues
             for (int p = 1; p < mpi_size; p++)
             {
                 _Bool external_continue = 0;
@@ -156,6 +161,7 @@ int main(int argc, char *argv[])
                 }
                 global_continue |= external_continue;
             }
+            // Send the global continue
             for (int p = 1; p < mpi_size; p++)
             {
                 if (sync_type == 0)
@@ -171,6 +177,8 @@ int main(int argc, char *argv[])
         }
         else
         {
+            // Other processors just have to send their local continues
+            // And get the answer from the root process
             if (sync_type == 0)
             {
                 MPI_Send(&local_continue, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD);
@@ -186,18 +194,26 @@ int main(int argc, char *argv[])
             MPI_Barrier(MPI_COMM_WORLD);
         iterations++;
     }
+
     if (rank == 0)
     {
         printf("Converged in %d iterations\nSolution found:\n", iterations);
         print_vector(x_global);
     }
-    free(recv_count);
-    free(first_rows);
+    // Finish properly in async case
+    if (rank > 1)
+    {
+        MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    // Cleanup memory
     free(residues);
     destruct_vector(&x_local);
     destruct_vector(&x_global);
     destruct_vector(&vec);
     destruct_matrix(&mtx);
+
+    // Finish MPI
     MPI_Finalize();
     return 0;
 }
