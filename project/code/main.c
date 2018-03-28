@@ -8,21 +8,24 @@
 
 int main(int argc, char *argv[])
 {
-    int dim_row, dim_col, num_rows, first_row = 0;
-
+    int dim_row, dim_col, num_rows, first_row, sync_type = 0;
     int rank, mpi_size;
     MPI_Init(&argc, &argv);                   // starts MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);     // get current process id
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size); // get number of processes
 
-    if (argc > 4)
+    // Dummy request required for async send
+    MPI_Request req;
+
+    if (argc > 5)
     {
         dim_row = atoi(argv[1]);
         dim_col = atoi(argv[2]);
+        sync_type = atoi(argv[5]);
     }
     else
     {
-        fprintf(stderr, "Use arguments to specify number of rows and columns, and the name of the files contraining the matrix and the vector \n\n");
+        fprintf(stderr, "Use arguments to specify number of rows and columns, the name of the files contraining the matrix and the vector and the sync type \n\n");
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
 
@@ -52,7 +55,7 @@ int main(int argc, char *argv[])
     // Residual analysis booleans
     // Contains true if x_i is still really near its limit
     _Bool *residues = calloc(num_rows, sizeof(_Bool));
-    for (int i = 0 ; i < num_rows ; i++)
+    for (int i = 0; i < num_rows; i++)
     {
         residues[i] = false;
     }
@@ -75,7 +78,14 @@ int main(int argc, char *argv[])
                 {
                     if (p != rank)
                     {
-                        MPI_Send(&x_global.vector[i], 1, MPI_DOUBLE, p, 0, MPI_COMM_WORLD);
+                        if (sync_type == 0)
+                        {
+                            MPI_Send(&x_global.vector[i], 1, MPI_DOUBLE, p, 0, MPI_COMM_WORLD);
+                        }
+                        else
+                        {
+                            MPI_Isend(&x_global.vector[i], 1, MPI_DOUBLE, p, 0, MPI_COMM_WORLD, &req);
+                        }
                     }
                 }
             }
@@ -84,10 +94,18 @@ int main(int argc, char *argv[])
                 // find which processor will send the data
                 int k = i * mpi_size / dim_col;
                 // Receive the data from the processor
-                MPI_Recv(&x_global.vector[i], 1, MPI_DOUBLE, k, 0, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
+                if (sync_type == 0)
+                {
+                    MPI_Recv(&x_global.vector[i], 1, MPI_DOUBLE, k, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                }
+                else
+                {
+                    MPI_Irecv(&x_global.vector[i], 1, MPI_DOUBLE, k, 0, MPI_COMM_WORLD, &req);
+                }
             }
         }
+        if (sync_type == 1)
+            MPI_Barrier(MPI_COMM_WORLD);
 
         // Calculate the next iteration of x_local
         for (int i = 0; i < num_rows; i++)
@@ -107,7 +125,7 @@ int main(int argc, char *argv[])
                 x_local.vector[i] = (1 / mtx.matrix[i][i + first_row]) * (vec.vector[i] - x_local.vector[i]);
 
                 // Residual analysis
-                if (fabs(x_local.vector[i]-x_global.vector[first_row+i]) < 1e-6)
+                if (fabs(x_local.vector[i] - x_global.vector[first_row + i]) < 1e-6)
                 {
                     residues[i] = true;
                 }
@@ -127,28 +145,50 @@ int main(int argc, char *argv[])
             bool global_continue = local_continue;
             for (int p = 1; p < mpi_size; p++)
             {
-                _Bool recv = 0;
-                MPI_Recv(&recv, 1, MPI_C_BOOL, p, 0, MPI_COMM_WORLD,
-                         MPI_STATUS_IGNORE);
-                global_continue |= recv;
+                _Bool external_continue = 0;
+                if (sync_type == 0)
+                {
+                    MPI_Recv(&external_continue, 1, MPI_C_BOOL, p, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                }
+                else
+                {
+                    MPI_Irecv(&external_continue, 1, MPI_C_BOOL, p, 0, MPI_COMM_WORLD, &req);
+                }
+                global_continue |= external_continue;
             }
             for (int p = 1; p < mpi_size; p++)
             {
-                MPI_Send(&global_continue, 1, MPI_C_BOOL, p, 0, MPI_COMM_WORLD);
+                if (sync_type == 0)
+                {
+                    MPI_Send(&global_continue, 1, MPI_C_BOOL, p, 0, MPI_COMM_WORLD);
+                }
+                else
+                {
+                    MPI_Isend(&global_continue, 1, MPI_C_BOOL, p, 0, MPI_COMM_WORLD, &req);
+                }
             }
             run = global_continue;
         }
         else
         {
-            MPI_Send(&local_continue, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD);
-            MPI_Recv(&run, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD,
-              MPI_STATUS_IGNORE);
+            if (sync_type == 0)
+            {
+                MPI_Send(&local_continue, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD);
+                MPI_Recv(&run, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+            }
+            else
+            {
+                MPI_Isend(&local_continue, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD, &req);
+                MPI_Irecv(&run, 1, MPI_C_BOOL, 0, 0, MPI_COMM_WORLD, &req);
+            }
         }
+        if (sync_type == 1)
+            MPI_Barrier(MPI_COMM_WORLD);
         iterations++;
     }
-    if (rank==0)
+    if (rank == 0)
     {
-        printf("Converged in %d iterations\nSolution found:\n",iterations);
+        printf("Converged in %d iterations\nSolution found:\n", iterations);
         print_vector(x_global);
     }
     free(recv_count);
