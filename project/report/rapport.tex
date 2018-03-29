@@ -38,23 +38,27 @@
 \usepackage[frenchb]{babel}
 \usepackage{dsfont}
 \usepackage{amsmath}
-\usepackage{times}
+\usepackage{hyperref}
+\usepackage{textcomp}
+% \usepackage{showframe}
+% \usepackage{times}
 % Margins
-\topmargin=-0.45in
-\evensidemargin=0in
-\oddsidemargin=0in
-\textwidth=6.5in
-\textheight=9.0in
-\headsep=0.25in
+% \topmargin=-0.45in
+\evensidemargin=0.25in
+\oddsidemargin=0.25in
+% \marginparwidth=2cm
+\textwidth=6in
+% \textheight=9.0in
+% \headsep=0.25in
 
 \linespread{1.1} % Line spacing
 
 % Set up the header and footer
 \pagestyle{fancy}
-\lhead{\hmwkAuthorName} % Top left header
+\lhead{} % Top left header
 \chead{\hmwkTitle} % Top center head
-\rhead{\firstxmark} % Top right header
-\lfoot{\lastxmark} % Bottom left footer
+\rhead{} % Top right header
+\lfoot{\hmwkAuthorName} % Bottom left footer
 \cfoot{} % Bottom center footer
 \rfoot{Page\ \thepage\ sur\ \protect\pageref{LastPage}} % Bottom right footer
 \renewcommand\headrulewidth{0.4pt} % Size of the header rule
@@ -67,11 +71,11 @@
 %----------------------------------------------------------------------------------------
 
 \lstloadlanguages{C} % Load Perl syntax for listings, for a list of other languages supported see: ftp://ftp.tex.ac.uk/tex-archive/macros/latex/contrib/listings/listings.pdf
-\lstset{texcl=true, columns=flexible,basicstyle=\small\ttfamily}
+\lstset{texcl=true, columns=flexible,basicstyle=\ttfamily}
 
 \lstdefinestyle{ccode}{language=C, % Use Perl in this example
         frame=single, % Single frame around code
-        basicstyle=\small\ttfamily, % Use small true type font
+        basicstyle=\ttfamily, % Use true type font
         keywordstyle=[1]\color{Blue}, % Perl functions bold and blue
         keywordstyle=[2]\color{Green}, % Perl function arguments purple
         keywordstyle=[3]\color{Blue}, % Custom functions underlined and blue
@@ -148,7 +152,7 @@
 
 % To have just one problem per page, simply put a \clearpage after each problem
 
-\section{Pre-Processing}
+\section{Méthode de Jacobi}
 
 \subsection{Définition du problème}
 
@@ -185,9 +189,9 @@ A =
   a_{n,1} & a_{n,2} & \cdots & 0
  \end{pmatrix}
 \]
-Ceci est intéressant car le calcul de $D^{-1}$ est trivial:
+Ceci est intéressant car le calcul de $D^{-1}$ est trivial :
 \[
-D^{-1}
+D^{-1} =
   \begin{pmatrix}
   \frac{1}{a_{1,1}} & 0 & \cdots & 0 \\
   0 & \frac{1}{a_{2,2}} & \cdots & 0 \\
@@ -214,16 +218,18 @@ Nous pouvons ensuite poser la suite $X^{(k)}, n \in \mathds{N}$ définie comme s
 
 La formule de récurrence s'écrit pour chacun des éléments de X :
 
-\begin{equation}
+\begin{equation} \label{eq:rec}
     \forall k \in \mathds{N}^*, \forall i \in \llbracket 1,n \rrbracket,
     x^{(k+1)}_i = \frac{1}{a_{ii}} (b_i - \sum_{i \neq j} a_{ij}x^{(k)}_j)
 \end{equation}
 
+\newpage
 \subsection{Convergence}
 
-Déterminons une condition tel que \(\lim_{k \to \infty} X^{(k)} = X\)).
-En posant \( A^\prime = -D^{-1}R\) et \( B^\prime = D^{-1}B \)
+Déterminons une condition telle que \(\lim_{k \to \infty} X^{(k)} = X\)).
+En posant \( A^\prime = -D^{-1}R\) et
 
+\( B^\prime = D^{-1}B \),
 \eqref{eq:reeq} devient alors :
 
 \[
@@ -267,11 +273,80 @@ Or, pour toute matrice \( M = (m_{ij}) \) à diagonale strictement dominante :
 
 Ainsi, si \( A \) est diagonale strictement dominante, alors son rayon spectral est inférieur à 1, ce qui fait converger la méthode de Jacobi.
 
+\newpage
+\section{Implémentation}
+\subsection{Structures de données}
+J'ai choisi de représenter mes matrices et vecteurs de façon très simple :
+des tableaux de \lstinline{double} et des entiers présentant les dimensions du tableau.
+Les deux fichiers les implémentant, \texttt{matrix.c} et \texttt{vector.c} sont donc très similaires.
+Ils contiennent des fonctions très simples pour la création, destruction et l'affichage de leur données, ainsi qu'une fonction leur permettant la création depuis un fichier. Cette dernière ne va charger qu'une partie de la matrice ou du vecteur pour limiter l'utilisation de mémoire.
 
-\section{Processing}
+\bigskip
+Cette structure de données n'est pas idéale pour les matrices, car dans les cas réels elles seront creuses, diminuant de beaucoup l'efficacité mémoire.
+Une amélioration possible serait de réécrire \texttt{matrix.c} en l'implémentant sous la forme de tableaux représentant les coordonnées des valeurs.
+On gagnera ainsi en taille mémoire, et l'on perdra en temps d'accès aux valeurs.
+
 \subsection{Parallélisation}
 
+On cherche donc à paralléliser \eqref{eq:rec}.
+Pour cela, on va partager les \(n\) lignes entre les \(q\) processus.
+Cela donne les relations suivantes pour un processus n\textdegree\(p\), en notant \(d = \lfloor \frac{n}{p} \rfloor\) et \(r = \text{mod}(n,p)\) :
+    % num_rows = dim_row / mpi_size;
+    % first_row = rank * (dim_row / mpi_size);
+\begin{itemize}
+    \item Nombre de lignes:  \(d\) si \(p<r\), \(d+1\) sinon;
+    \item Sa première ligne est \(dp+\text{min}(r,p)\)
+    \item le processus contenant la ligne \(i\) est le n\textdegree\(\lfloor \frac{iq}{n} \rfloor\)
+\end{itemize}
+Ces relations sont valables pour une numérotation des lignes et des processus commençant tous deux à 0.
+Cela correspond aux variables \lstinline{num_rows} et
+\lstinline{first_row} dans le code.
 
-\section{Post-Processing}
+\bigskip
+
+Bien sûr, une telle séparation n'est a priori pas réalisable, le calcul de \(x_i\) dépendant des \(x_j, j \neq i\).
+Pour y remédier, chaque processus va contenir deux vecteurs : \lstinline{x_local} et \lstinline{x_global}.
+Le premier correspond aux lignes spécifiques aux processus, le deuxième à la totalité du vecteur \(X^{(k)}\).
+Lors de chaque itérations, les processus commencent par envoyer à chacun leurs valeurs dans leur \lstinline{x_local}.
+Tous les processus remplissent alors \lstinline{x_global}, ce qui leur permet de calculer la nouvelle itération de \lstinline{x_local}.
+Il ne reste plus qu'à répéter cette opération jusqu'à ce qu'on soit satisfait de l'approximation de \(X\) obtenue.
+
+\newpage
+\subsection{Arrêt}
+
+Afin de déterminer l'erreur commise \(\epsilon_k = \|X^{(k)} - X \|_\infty\), la première réaction est de calculer \(AX^{k}-b = A(X^{k}-X)\).
+Cependant c'est là un nouveau calcul de pruduit matrice-vecteurs, que l'on cherche justemet à accélérer.
+
+En remarquant qu'en fin d'itération, \lstinline{x_local} correspond à \(X^{(k+1)}\) et \lstinline{x_global} à \(X^{(k)}\), on va plutôt calculer :
+\(    \mu_k = \| X^{(k+1)} - X^{(k)} \|_\infty \).
+En effet :
+\begin{align*}
+    \mu_k &= \| A^\prime X^{(k)} + B^\prime - X^{(k)} \|_\infty \\
+    &= \| A^\prime X^{(k)} + X - A^\prime X- X^{(k)} \|_\infty \\
+    &= \| A^\prime (X^{(k)} - X) - ( X^{(k)} - X ) \|_\infty \\
+    \mu_k &\geq \left| \| A^\prime (X^{(k)} - X) \|_\infty - \epsilon_k \right|
+\end{align*}
+
+Or, nous avions vu que pour la convergence, le rayon spectral de \(A^\prime\) est nécessairement strictement inférieur à 1.
+Donc \(\| A^\prime (X^{(k)} - X) \|_\infty \leq \epsilon_k \) et enfin
+\(\mu_k \geq \epsilon_k\)
+
+Ainsi, pour obtenir une valeur approchée de \(X\) à \(10^{-6}\) près,
+il suffira d'itérer jusqu'à obtenir une différence entre \lstinline{x_local}
+et \lstinline{x_global} de moins de \(10^{-6}\).
+
+\bigskip
+
+En pratique, pour limiter le nombre de calculs, à chaque coefficient
+\lstinline{x_local[i]} on associe un booléen \lstinline{residues[i]}
+qui indique si \(x^{(k)}_i\) doit encore itérer.
+Si ce n'est pas le cas, on ne fais plus le calcul associé : \(x^{(k+1)}_i = x^{(k)}_i\).
+Pour tester la fin du programme dans sa totalité, chaque processus va vérifier
+si au moins une valeurs de \lstinline{residues} est à \lstinline{true}.
+Ensuite chaque processus va envoyer ce résultat au premier processus, qui va pouvoir déterminer si le la solution est suffisament bien approchée dans sa globalité.
+Il répondra donc à tous les processus un ordre de continuer ou de s'arréter suivant le cas, gérée par la variable \lstinline{run}.
+
+\newpage
+\section{Résultats}
 
 \end{document}
