@@ -1,0 +1,277 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Programming/Coding Assignment
+% LaTeX Template
+%
+% This template has been downloaded from:
+% http://www.latextemplates.com
+%
+% Original author:
+% Ted Pavlic (http://www.tedpavlic.com)
+%
+% Note:
+% The \lipsum[#] commands throughout this template generate dummy text
+% to fill the template out. These commands should all be removed when
+% writing assignment content.
+%
+% This template uses a Perl script as an example snippet of code, most other
+% languages are also usable. Configure them in the "CODE INCLUSION
+% CONFIGURATION" section.
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[11pt, a4paper]{article}
+
+\usepackage{fancyhdr} % Required for custom headers
+\usepackage{lastpage} % Required to determine the last page for the footer
+\usepackage{extramarks} % Required for headers and footers
+\usepackage[usenames,dvipsnames]{color} % Required for custom colors
+\usepackage{graphicx} % Required to insert images
+\usepackage{listings} % Required for insertion of code
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{stmaryrd}
+\usepackage{algpseudocode}
+\usepackage[frenchb]{babel}
+\usepackage{dsfont}
+\usepackage{amsmath}
+\usepackage{times}
+% Margins
+\topmargin=-0.45in
+\evensidemargin=0in
+\oddsidemargin=0in
+\textwidth=6.5in
+\textheight=9.0in
+\headsep=0.25in
+
+\linespread{1.1} % Line spacing
+
+% Set up the header and footer
+\pagestyle{fancy}
+\lhead{\hmwkAuthorName} % Top left header
+\chead{\hmwkTitle} % Top center head
+\rhead{\firstxmark} % Top right header
+\lfoot{\lastxmark} % Bottom left footer
+\cfoot{} % Bottom center footer
+\rfoot{Page\ \thepage\ sur\ \protect\pageref{LastPage}} % Bottom right footer
+\renewcommand\headrulewidth{0.4pt} % Size of the header rule
+\renewcommand\footrulewidth{0.4pt} % Size of the footer rule
+
+\setlength\parindent{0pt} % Removes all indentation from paragraphs
+
+%----------------------------------------------------------------------------------------
+%	CODE INCLUSION CONFIGURATION
+%----------------------------------------------------------------------------------------
+
+\lstloadlanguages{C} % Load Perl syntax for listings, for a list of other languages supported see: ftp://ftp.tex.ac.uk/tex-archive/macros/latex/contrib/listings/listings.pdf
+\lstset{texcl=true, columns=flexible,basicstyle=\small\ttfamily}
+
+\lstdefinestyle{ccode}{language=C, % Use Perl in this example
+        frame=single, % Single frame around code
+        basicstyle=\small\ttfamily, % Use small true type font
+        keywordstyle=[1]\color{Blue}, % Perl functions bold and blue
+        keywordstyle=[2]\color{Green}, % Perl function arguments purple
+        keywordstyle=[3]\color{Blue}, % Custom functions underlined and blue
+        identifierstyle=, % Nothing special about identifiers
+        commentstyle=\small\color{Brown}, % Comments small dark green courier font
+        stringstyle=\color{OliveGreen}, % Strings are purple
+        showstringspaces=false, % Don't put marks in string spaces
+        tabsize=5, % 2 spaces per tab
+        %
+        % Put standard Perl functions not included in the default language here
+        morekeywords={f, sequantial_computation, parallel_computation, printf},
+        morecomment=[l][\color{Blue}]{...}, % Line continuation (...) like blue comment
+        numbers=left, % Line numbers on left
+        firstnumber=1, % Line numbers start with line 1
+        numberstyle=\tiny\color{Blue}, % Line numbers are blue and small
+        stepnumber=5, % Line numbers go in steps of 5
+        texcl=true,
+        columns=flexible
+}
+
+% Creates a new command to include a perl script, the first parameter is the filename of the script (without .pl), the second parameter is the caption
+\newcommand{\cscript}[2]{
+\begin{itemize}
+\item[]\lstinputlisting[caption=#2,label=#1]{#1.pl}
+\end{itemize}
+}
+
+
+\newcommand{\problemAnswer}[1]{ % Defines the problem answer command with the content as the only argument
+\noindent\framebox[\columnwidth][c]{\begin{minipage}{0.98\columnwidth}#1\end{minipage}} % Makes the box around the problem answer and puts the content inside
+}
+
+%----------------------------------------------------------------------------------------
+%	NAME AND CLASS SECTION
+%----------------------------------------------------------------------------------------
+
+\newcommand{\hmwkTitle}{Projet final : Parallélisation de l'algorithme de Jacobi} % Assignment title
+\newcommand{\hmwkClass}{High Performance Computing} % Course/class
+\newcommand{\hmwkAuthorName}{Rémi Garde} % Your name
+
+%----------------------------------------------------------------------------------------
+%	TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\title{
+\LARGE{\textbf{\hmwkClass}}\\
+\vspace{0.5in}
+\large{\textbf{\hmwkTitle}}
+\vspace{3in}
+}
+
+\author{\textbf{\hmwkAuthorName}}
+\date{Mars 2018} % Insert date here if you want it to appear below your name
+
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+\maketitle
+
+%----------------------------------------------------------------------------------------
+%	TABLE OF CONTENTS
+%----------------------------------------------------------------------------------------
+
+%\setcounter{tocdepth}{1} % Uncomment this line if you don't want subsections listed in the ToC
+
+\newpage
+\tableofcontents
+\newpage
+
+%----------------------------------------------------------------------------------------
+%	PROBLEM 1
+%----------------------------------------------------------------------------------------
+
+% To have just one problem per page, simply put a \clearpage after each problem
+
+\section{Pre-Processing}
+
+\subsection{Définition du problème}
+
+Soit $n \in \mathds{N}$, $A = (a_{ij})_{(i,j)\in \llbracket 1,n \rrbracket^2}$ une matrice carrée de taille $n$, $B = (b_{i})_{i\in \llbracket 1,n \rrbracket}$ un vecteur de taille $n$.
+Nous cherchons à résoudre le système d'équations linéaires
+\begin{equation} \label{eq:problem}
+    AX=B
+\end{equation}
+pour $X = (x_{i})_{i\in \llbracket 1,n \rrbracket}$ vecteur de taille $n$.
+
+\subsection{Résolution}
+
+Pour résoudre ce problème, $A$ est séparée en 2 matrices $D$ et $R$, avec $D$ matrice de la diagonale de $A$ et $R$ les éléments non diagonaux de $A$ :
+\[
+A =
+ \begin{pmatrix}
+  a_{1,1} & a_{1,2} & \cdots & a_{1,n} \\
+  a_{2,1} & a_{2,2} & \cdots & a_{2,n} \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+  a_{n,1} & a_{n,2} & \cdots & a_{n,n}
+ \end{pmatrix}
+ =
+  \begin{pmatrix}
+  a_{1,1} & 0 & \cdots & 0 \\
+  0 & a_{2,2} & \cdots & 0 \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+  0 & 0 & \cdots & a_{n,n}
+ \end{pmatrix}
+ +
+  \begin{pmatrix}
+  0 & a_{1,2} & \cdots & a_{1,n} \\
+  a_{2,1} & 0 & \cdots & a_{2,n} \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+  a_{n,1} & a_{n,2} & \cdots & 0
+ \end{pmatrix}
+\]
+Ceci est intéressant car le calcul de $D^{-1}$ est trivial:
+\[
+D^{-1}
+  \begin{pmatrix}
+  \frac{1}{a_{1,1}} & 0 & \cdots & 0 \\
+  0 & \frac{1}{a_{2,2}} & \cdots & 0 \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+  0 & 0 & \cdots & \frac{1}{a_{n,n}}
+ \end{pmatrix}
+\]
+La formulation \eqref{eq:problem} devient donc équivalente à \((D+R)X=B\)
+ce qui donne:
+\begin{equation} \label{eq:reeq}
+    X = D^{-1} (B-RX)
+\end{equation}
+
+Nous pouvons ensuite poser la suite $X^{(k)}, n \in \mathds{N}$ définie comme suit:
+
+\[
+\left\{
+    \begin{array}{lr}
+        X^{(0)} = 0 \\
+        X^{(k+1)} = D^{-1} (B-RX^{(k)}),& k \in \mathds{N}^*
+    \end{array}
+\right.
+\]
+
+La formule de récurrence s'écrit pour chacun des éléments de X :
+
+\begin{equation}
+    \forall k \in \mathds{N}^*, \forall i \in \llbracket 1,n \rrbracket,
+    x^{(k+1)}_i = \frac{1}{a_{ii}} (b_i - \sum_{i \neq j} a_{ij}x^{(k)}_j)
+\end{equation}
+
+\subsection{Convergence}
+
+Déterminons une condition tel que \(\lim_{k \to \infty} X^{(k)} = X\)).
+En posant \( A^\prime = -D^{-1}R\) et \( B^\prime = D^{-1}B \)
+
+\eqref{eq:reeq} devient alors :
+
+\[
+    X = A^\prime X + B^\prime
+\]
+et ainsi
+
+\[
+    X^{(k+1)} - X = A^\prime X^{(k)} + B^\prime - (A^\prime X + B^\prime)
+    =  A^\prime (X^{(k)} - X)
+\]
+ce qui indique
+\[
+    \lim_{k \to \infty} \| X^{(k+1)} - X \| = 0 \Leftrightarrow \rho(A^\prime) < 1
+\]
+
+On remarque que les coefficients de \( A^\prime \) s'écrivent:
+\[
+    a^\prime_{i,j} = \left\{
+        \begin{array}{lr}
+            0 & \text{si } i = j \\
+            \frac{-a_{ij}}{a_{ii}} & \text{si } i \neq j
+        \end{array}
+    \right.
+\]
+
+Soit \( \lambda \) une valeur propre de \( A^\prime \) et \( Y = (y_i) \)
+un vecteur propre associé.
+\( A^\prime Y = \lambda Y \) donne donc pour tout \(i\) :
+\begin{align*}
+    |\lambda y_i| &= | \sum_j a^\prime_{ij} y_j | \\
+    |\lambda y_i| &= | \sum_{j \neq i} \frac{-a_{ij}}{a_{ii}} y_j | \\
+    |\lambda y_i| &= |\frac{1}{a_{ii}} y_i| \cdot | \sum_{j \neq i} -a_{ij}| \\
+    |\lambda y_i| &\leq |\frac{1}{a_{ii}} y_i| \sum_{j \neq i} |a_{ij}|
+\end{align*}
+
+Or, pour toute matrice \( M = (m_{ij}) \) à diagonale strictement dominante :
+\[
+    \forall i, |m_{ii}| > \sum_{j \neq i} |m_{ij}|
+\]
+
+Ainsi, si \( A \) est diagonale strictement dominante, alors son rayon spectral est inférieur à 1, ce qui fait converger la méthode de Jacobi.
+
+
+\section{Processing}
+\subsection{Parallélisation}
+
+
+\section{Post-Processing}
+
+\end{document}
