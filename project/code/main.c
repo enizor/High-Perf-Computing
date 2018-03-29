@@ -52,11 +52,11 @@ int main(int argc, char *argv[])
     struct Vector x_global = create_vector(dim_col);
 
     // Residual analysis booleans
-    // Contains true if x_i is still really near its limit
+    // Contains true if x_i still needs to iterate
     _Bool *residues = calloc(num_rows, sizeof(_Bool));
     for (int i = 0; i < num_rows; i++)
     {
-        residues[i] = false;
+        residues[i] = true;
     }
     _Bool run = true;
     int iterations = 0;
@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
         {
             // Calculate the next iteration only if
             // the residue indicates it is far from its limit
-            if (!residues[i])
+            if (residues[i])
             {
                 x_local.vector[i] = 0;
 
@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
                 // Residual analysis
                 if (fabs(x_local.vector[i] - x_global.vector[first_row + i]) < 1e-6)
                 {
-                    residues[i] = true;
+                    residues[i] = false;
                 }
             }
         }
@@ -137,9 +137,11 @@ int main(int argc, char *argv[])
         // Test for whole convergence
         // Local "Should I continue to iterate?"
         bool local_continue = false;
-        for (int i = 0; i < num_rows; i++)
+        int i = 0;
+        while (!local_continue && i < num_rows )
         {
-            local_continue |= !residues[i];
+            local_continue |= residues[i];
+            i++;
         }
 
         // The root process receives a finishing ping from each other processes
