@@ -383,9 +383,44 @@ il suffit de rajouter un \lstinline{MPI_Barrier} après le bloc d'envoi et de r�
 Chaque processus va alors créer ses requêtes, chacun à sa vitesse, puis s'arrêter sur le \lstinline{MPI_Barrier} jusqu'à ce que tous les processus y soient.
 Alors le process reprendra son cours.
 
-
+Dans le code, le choix du mode de communication se fait en fonction du 5e argument \lstinline{argv[5]} : 0 pour synchrone, 1 pour asynchrone, 2 pour asynchrone et enlever les \lstinline{MPI_Barrier}.
+Dans ce dernier cas, on va overrider les résidus : en effet si aucun des messages n'a été transmis, \(X^{(k+1)} = X^{(k)} \) et l'on arrêtera d'itérer dessus.
+Le programme stoppera quand il atteindra la limite d'itérations, 5000.
+Un \lstinline{MPI_Barrier} à ce moment récupèrera les requête perdues.
+Attention cependant: le nombre total de requêtes vaut : \( 5000nq \), si les itérations sont finies avant que les réquêtes aient été reçues, cela fait une quantité de mémoire non négligeable.
 \newpage
 
 \section{Résultats}
 
+Le code est compilé et lancé comme suit :
+\begin{lstlisting}[language=bash, keywordstyle=\color{black}\bf]
+$ mpicc code/*.c -o out
+$ mpirun -n <number_of_processors> ./out \
+    <matrix_size> <matrix_file_path> <vector_file_path> <sync_type>
+$  mpirun -n 2 ./out 20 examples/mat20.txt examples/vec20.txt 0
+\end{lstlisting}
+
+avec \lstinline{<sync_type>} correspondant à 0 pour synchrone, 1 pour asynchrone,
+et 2 pour asynchrone sans \lstinline{MPI_Barrier}
+
+\bigskip
+
+Dans le dossier \texttt{examples} je proposes quelques exemples de matrices à diagonale strictement dominante, de tailles respectives 4, 20, et 300.
+
+Je ne remarque pas de différence en temps d'éxécutions entre le synchrone et l'asynchrone. Cependant mon choix d'arrêt au bout de 5000 itérations rend dans tous les cas l'asynchrone sans \lstinline{MPI_Barrier} plus lent.
+De même, la différence est minime lorsque je change la taille de la matrice en restant raisonnable (\(n \leq 300\)).
+Les 3 exemples de tailles 4, 20 et 300 sont des matrices denses.
+
+Le programme n'est plus instantané pour mon exemple de taille 5000.
+Cet exemple est contenu dans un fichier zip supplémentaire pour vous laisser le choix de son utilisation, car décompréssée la matrice fait 50Mo.
+Il s'agit d'une matrice creuse, où seules les 5 diagonales les plus proches du
+centre sont remplies. Le programme finit en quelques secondes toutefois, au bout de 24 itérations.
+L'impact mémoire, de quelques centaines de Mo, est pour la première fois sensible.
+
+\bigskip
+
+Utiliser l'asynchrone sans \lstinline{MPI_Barrier} ne marche pas très bien.
+On s'aperçoit que quelques coefficients sont itérés, mais pas tous.
+Je suppose que le programme itère plus vite que MPI parvient à faire les requêtes.
+Je pense donc que même dans ce cas, l'algorithme converge au temps (beaucoup plus) long.
 \end{document}
