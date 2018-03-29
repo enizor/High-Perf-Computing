@@ -13,7 +13,7 @@ The project is separated in 3 parts:
 
 ```
 mpicc code/*.c -o out
-mpirun -n <number_of_processors> ./out <dim_row> <dim_col> <matrix_file_path> <vector_file_path> <sync_type>
+mpirun -n <number_of_processors> ./out <matrix_size> <matrix_file_path> <vector_file_path> <sync_type>
 ```
 sync_type correspond to the choice of synchronous Send/Recv with MPI.
 0: Synchronous

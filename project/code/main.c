@@ -18,11 +18,11 @@ int main(int argc, char *argv[])
     MPI_Request req;
 
     // Arguments handling
-    if (argc > 5)
+    if (argc > 4)
     {
         dim_row = atoi(argv[1]);
-        dim_col = atoi(argv[2]);
-        sync_type = atoi(argv[5]);
+        dim_col = dim_row;
+        sync_type = atoi(argv[4]);
     }
     else
     {
@@ -44,8 +44,8 @@ int main(int argc, char *argv[])
     }
 
     // Load the (local) matrix and vector from the file
-    struct Matrix mtx = load_matrix(argv[3], first_row, num_rows);
-    struct Vector vec = load_vector(argv[4], first_row, num_rows);
+    struct Matrix mtx = load_matrix(argv[2], first_row, num_rows);
+    struct Vector vec = load_vector(argv[3], first_row, num_rows);
 
     // Create local and global x vector
     struct Vector x_local = create_vector(num_rows);
