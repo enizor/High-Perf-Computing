@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     _Bool run = true;
     int iterations = 0;
     // Jacobi method
-    while (run && (iterations < 50000))
+    while (run && (iterations < 5000))
     {
         // print_vector(x_local);
         // Send and receive each value of the global X
@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
         {
             // Calculate the next iteration only if
             // the residue indicates it is far from its limit
+            // Always calculate when async and removing MPI_Barrier
             if (residues[i])
             {
                 x_local.vector[i] = 0;
@@ -127,7 +128,8 @@ int main(int argc, char *argv[])
                 x_local.vector[i] = (1 / mtx.matrix[i][i + first_row]) * (vec.vector[i] - x_local.vector[i]);
 
                 // Residual analysis
-                if (fabs(x_local.vector[i] - x_global.vector[first_row + i]) < 1e-6)
+                // Do not update when async and removing MPI_Barrier
+                if (fabs(x_local.vector[i] - x_global.vector[first_row + i]) < 1e-6 && (sync_type < 2))
                 {
                     residues[i] = false;
                 }
@@ -208,8 +210,8 @@ int main(int argc, char *argv[])
         printf("Converged in %d iterations\nSolution found:\n", iterations);
         print_vector(x_global);
     }
-    // Finish properly in async case
-    if (rank > 1)
+    // Finish properly all communications in async case
+    if (sync_type > 1)
     {
         MPI_Barrier(MPI_COMM_WORLD);
     }
