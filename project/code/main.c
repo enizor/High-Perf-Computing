@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
     _Bool run = true;
     int iterations = 0;
     // Jacobi method
-    while (run)
+    while (run && (iterations < 50000))
     {
         // print_vector(x_local);
         // Send and receive each value of the global X
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
         // Local "Should I continue to iterate?"
         bool local_continue = false;
         int i = 0;
-        while (!local_continue && i < num_rows )
+        while (!local_continue && i < num_rows)
         {
             local_continue |= residues[i];
             i++;
@@ -163,6 +163,12 @@ int main(int argc, char *argv[])
                 }
                 global_continue |= external_continue;
             }
+            //Override the global_continue when without Barrier
+            if (sync_type > 1)
+            {
+                global_continue = true;
+            }
+
             // Send the global continue
             for (int p = 1; p < mpi_size; p++)
             {

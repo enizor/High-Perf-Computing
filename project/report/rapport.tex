@@ -40,7 +40,6 @@
 \usepackage{amsmath}
 \usepackage{hyperref}
 \usepackage{textcomp}
-% \usepackage{showframe}
 % \usepackage{times}
 % Margins
 % \topmargin=-0.45in
@@ -260,10 +259,11 @@ Soit \( \lambda \) une valeur propre de \( A^\prime \) et \( Y = (y_i) \)
 un vecteur propre associé.
 \( A^\prime Y = \lambda Y \) donne donc pour tout \(i\) :
 \begin{align*}
-    |\lambda y_i| &= | \sum_j a^\prime_{ij} y_j | \\
-    |\lambda y_i| &= | \sum_{j \neq i} \frac{-a_{ij}}{a_{ii}} y_j | \\
-    |\lambda y_i| &= |\frac{1}{a_{ii}} y_i| \cdot | \sum_{j \neq i} -a_{ij}| \\
-    |\lambda y_i| &\leq |\frac{1}{a_{ii}} y_i| \sum_{j \neq i} |a_{ij}|
+    \|\lambda Y\|_\infty &= | \sum_j a^\prime_{ij} y_j | \\
+    |\lambda| \cdot\| Y\|_\infty &= | \sum_{j \neq i} \frac{-a_{ij}}{a_{ii}} y_j | \\
+    |\lambda| \cdot\| Y\|_\infty &= |\frac{1}{a_{ii}}| \cdot | \sum_{j \neq i} -a_{ij} y_j| \\
+    |\lambda| \cdot\| Y\|_\infty &\leq |\frac{1}{a_{ii}}| \sum_{j \neq i} |a_{ij} y_j|\\
+    |\lambda| \cdot\| Y\|_\infty &\leq |\frac{1}{a_{ii}}| \sum_{j \neq i} |a_{ij}| \cdot\| Y\|_\infty
 \end{align*}
 
 Or, pour toute matrice \( M = (m_{ij}) \) à diagonale strictement dominante :
@@ -315,7 +315,7 @@ Il ne reste plus qu'à répéter cette opération jusqu'à ce qu'on soit satisfa
 \subsection{Arrêt}
 
 Afin de déterminer l'erreur commise \(\epsilon_k = \|X^{(k)} - X \|_\infty\), la première réaction est de calculer \(AX^{k}-b = A(X^{k}-X)\).
-Cependant c'est là un nouveau calcul de pruduit matrice-vecteurs, que l'on cherche justemet à accélérer.
+Cependant c'est là un nouveau calcul de produit matrice-vecteurs, que l'on cherche justement à accélérer.
 
 En remarquant qu'en fin d'itération, \lstinline{x_local} correspond à \(X^{(k+1)}\) et \lstinline{x_global} à \(X^{(k)}\), on va plutôt calculer :
 \(    \mu_k = \| X^{(k+1)} - X^{(k)} \|_\infty \).
@@ -329,7 +329,7 @@ En effet :
 
 Or, nous avions vu que pour la convergence, le rayon spectral de \(A^\prime\) est nécessairement strictement inférieur à 1.
 Donc \(\| A^\prime (X^{(k)} - X) \|_\infty \leq \epsilon_k \) et enfin
-\(\mu_k \geq \epsilon_k\)
+\(\mu_k \geq \epsilon_k\).
 
 Ainsi, pour obtenir une valeur approchée de \(X\) à \(10^{-6}\) près,
 il suffira d'itérer jusqu'à obtenir une différence entre \lstinline{x_local}
@@ -342,11 +342,50 @@ En pratique, pour limiter le nombre de calculs, à chaque coefficient
 qui indique si \(x^{(k)}_i\) doit encore itérer.
 Si ce n'est pas le cas, on ne fais plus le calcul associé : \(x^{(k+1)}_i = x^{(k)}_i\).
 Pour tester la fin du programme dans sa totalité, chaque processus va vérifier
-si au moins une valeurs de \lstinline{residues} est à \lstinline{true}.
-Ensuite chaque processus va envoyer ce résultat au premier processus, qui va pouvoir déterminer si le la solution est suffisament bien approchée dans sa globalité.
-Il répondra donc à tous les processus un ordre de continuer ou de s'arréter suivant le cas, gérée par la variable \lstinline{run}.
+si au moins une valeur de \lstinline{residues} est à \lstinline{true}.
+Ensuite chaque processus va envoyer ce résultat \lstinline{local_continue} au premier processus, qui va pouvoir déterminer si le la solution est suffisamment bien approchée dans sa globalité.
+Il répondra donc à tous les processus un ordre de continuer ou de s'arrêter suivant le cas, gérée par la variable \lstinline{run}.
 
 \newpage
+\subsection{Communication entre les processus}
+
+Avec ce qui a été dit précédemment, nous avons 2 communications à faire :
+la première le partage de \lstinline{x_local} avec tous les autres processus,
+la deuxième la mise en commun des \lstinline{local_continue}.
+
+\bigskip
+
+Pour partager le vecteur \lstinline{x_local}, chaque processus va itérer sur la ligne \(i\).
+On détermine d'abord quel processus continent le coefficient \(x_i\),
+et ce processus va envoyer cette valeur à tous les autres, dans l'ordre,
+soit \((q-1)\) \lstinline{MPI_Send} avec q nombre de processus.
+Les autres processus ont juste à faire un \lstinline{MPI_Recv}.
+
+Quant au partage de \lstinline{local_continue},
+il suffit à chaque processus autre que 0 un \lstinline{MPI_Send}, et
+\((q-1)\) \lstinline{MPI_Recv} pour le processus 0, et les opérations inverses
+pour le partage du \lstinline{global_continue}
+
+\bigskip
+
+Deux modèles de communications sont possibles : un format synchrone,
+où chaque opération est bloquante, et un format asynchrone, où les opérations
+de communications ne sont pas bloquantes, et l'on doit utiliser d'autres fonctions
+pour savoir lorsqu'elles ont eu lieu.
+On peut gagner beaucoup de temps grâce à l'asynchrone ici :
+chaque coefficient peut être récupéré indépendamment, et il suffit se savoir
+quand tous ces coefficients ont été transmis.
+Pour cela, on change les \lstinline{MPI_Send} en \lstinline{MPI_Isend},
+les \lstinline{MPI_Recv} en \lstinline{MPI_Irecv}, en rajoutant en argument
+une \lstinline{MPI_Request} qui permettra ensuite de tester sa complétion.
+Cependant il est ici inutile de tester directement la complétion d'une requête particulière,
+il suffit de rajouter un \lstinline{MPI_Barrier} après le bloc d'envoi et de réception.
+Chaque processus va alors créer ses requêtes, chacun à sa vitesse, puis s'arrêter sur le \lstinline{MPI_Barrier} jusqu'à ce que tous les processus y soient.
+Alors le process reprendra son cours.
+
+
+\newpage
+
 \section{Résultats}
 
 \end{document}
