@@ -360,8 +360,10 @@ il suffit de rajouter un \lstinline{MPI_Barrier} après le bloc d'envoi et de r�
 Chaque processus va alors créer ses requêtes, chacun à sa vitesse, puis s'arrêter sur le \lstinline{MPI_Barrier} jusqu'à ce que tous les processus y soient.
 Alors le process reprendra son cours.
 
+\bigskip
+
 Dans le code, le choix du mode de communication se fait en fonction du 4e argument \lstinline{argv[4]} : 0 pour synchrone, 1 pour asynchrone, 2 pour asynchrone et enlever les \lstinline{MPI_Barrier}.
-Dans ce dernier cas, on va overrider les résidus : en effet si aucun des messages n'a été transmis, \(X^{(k+1)} = X^{(k)} \) et l'on arrêtera d'itérer dessus.
+Dans ce dernier cas, on va overrider les résidus : en effet si aucun des messages n'a été transmis, \\ \(X^{(k+1)} = X^{(k)} \) et l'on arrêtera d'itérer dessus.
 Le programme stoppera quand il atteindra la limite d'itérations, 5000.
 Un \lstinline{MPI_Barrier} à ce moment récupèrera les requête perdues.
 Attention cependant: le nombre total de requêtes vaut : \( 5000nq \), si les itérations sont finies avant que les réquêtes aient été reçues, cela fait une quantité de mémoire non négligeable.
