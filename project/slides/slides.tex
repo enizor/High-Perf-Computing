@@ -1,0 +1,254 @@
+\documentclass{beamer}
+%
+% Choose how your presentation looks.
+%
+% For more themes, color themes and font themes, see:
+% http://deic.uab.es/~iblanes/beamer_gallery/index_by_theme.html
+%
+\mode<presentation>
+{
+  \usetheme{Malmoe}      % or try Darmstadt, Madrid, Warsaw, ...
+  \usecolortheme{beaver} % or try albatross, beaver, crane, ...
+  \usefonttheme{default}  % or try serif, structurebold, ...
+  \setbeamertemplate{navigation symbols}{}
+  \setbeamertemplate{caption}[numbered]
+}
+
+\usepackage[frenchb]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{extramarks} % Required for headers and footers
+\usepackage{listings} % Required for insertion of code
+\usepackage{dsfont}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{textcomp}
+\usepackage{stmaryrd}
+\usepackage{framed}
+
+\lstset{texcl=true, columns=flexible,basicstyle=\ttfamily}
+
+\title[Parallélisation de l'algorithme de Jacobi]{High Performance Computing \\
+Parallélisation de l'algorithme de Jacobi}
+\author{Rémi Garde}
+\institute{}
+\date{Mars 2018}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% Uncomment these lines for an automatically generated outline.
+% \begin{frame}{Outline}
+%  \tableofcontents
+% \end{frame}
+
+\section{Méthode de Jacobi}
+
+\subsection{Définition du problème}
+
+\begin{frame}{Définition du problème}
+Avec $n \in \mathds{N}$, $A = (a_{ij})_{(i,j)\in \llbracket 1,n \rrbracket^2}$, $B = (b_{i})_{i\in \llbracket 1,n \rrbracket}$.
+
+Résolution du système d'équations linéaires
+\begin{equation} \label{eq:problem}
+    AX=B
+\end{equation}
+pour $X = (x_{i})_{i\in \llbracket 1,n \rrbracket}$.
+\end{frame}
+
+\subsection{Résolution}
+
+\begin{frame}{Résolution : Décomposition}
+
+$A$ est séparée en 2 matrices $D$ et $R$, avec $D$ matrice de la diagonale de $A$ et $R$ les éléments non diagonaux de $A$ :
+\[
+A =
+  \begin{pmatrix}
+  a_{1,1} & 0 & \cdots & 0 \\
+  0 & a_{2,2} & \cdots & 0 \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+  0 & 0 & \cdots & a_{n,n}
+ \end{pmatrix}
+ +
+  \begin{pmatrix}
+  0 & a_{1,2} & \cdots & a_{1,n} \\
+  a_{2,1} & 0 & \cdots & a_{2,n} \\
+  \vdots  & \vdots  & \ddots & \vdots  \\
+  a_{n,1} & a_{n,2} & \cdots & 0
+ \end{pmatrix}
+\]
+La formulation \eqref{eq:problem} devient donc équivalente à:
+\begin{equation} \label{eq:reeq}
+    X = D^{-1} (B-RX)
+\end{equation}
+\end{frame}
+
+\begin{frame}{Résolution : Itérations}
+\[
+    X^{(k)}, k \in \mathds{N} =
+\left\{
+    \begin{array}{lr}
+        X^{(0)} = 0 \\
+        X^{(k+1)} = D^{-1} (B-RX^{(k)}),& k \in \mathds{N}^*
+    \end{array}
+\right.
+\]
+
+Formule de récurrence pour les coefficients:
+
+\begin{equation} \label{eq:rec}
+    \forall k \in \mathds{N}^*, \forall i \in \llbracket 1,n \rrbracket,
+    x^{(k+1)}_i = \frac{1}{a_{ii}} (b_i - \sum_{i \neq j} a_{ij}x^{(k)}_j)
+\end{equation}
+
+\end{frame}
+
+\subsection{Convergence}
+
+\begin{frame}{Convergence}
+    Avec \( A^\prime = -D^{-1}R\) et \( B^\prime = D^{-1}B \):
+\[
+    X = A^\prime X + B^\prime
+\]
+\[
+    X^{(k+1)} - X =  A^\prime (X^{(k)} - X)
+\]
+d'où
+\[
+    \lim_{k \to \infty} \| X^{(k+1)} - X \| = 0 \Leftrightarrow \rho(A^\prime) < 1
+\]
+\begin{framed}
+La méthode de Jacobi converge si et seulement si \(A^\prime\) est de rayon spectral strictement inférieur à 1
+\end{framed}
+\end{frame}
+
+\begin{frame}{Convergence}
+\[
+\text{En remarquant que } a^\prime_{i,j} = \left\{
+        \begin{array}{lr}
+            0 & \text{si } i = j \\
+            \frac{-a_{ij}}{a_{ii}} & \text{si } i \neq j
+        \end{array}
+    \right.
+\]
+et en prenant \( \lambda \) une valeur propre de \( A^\prime \) et \( Y = (y_i) \)
+un vecteur propre associé, dans le cas de A à diagonale strictement dominante :
+\begin{align*}
+    |\lambda| \cdot\| Y\|_\infty &= \max_{i} | \sum_{j \neq i} \frac{-a_{ij}}{a_{ii}} y_j | \\
+    |\lambda| \cdot\| Y\|_\infty &\leq \max_{i}|\frac{1}{a_{ii}}| \sum_{j \neq i} |a_{ij}| \cdot\| Y\|_\infty \leq \| Y\|_\infty
+\end{align*}
+\begin{framed}
+La méthode de Jacobi converge pour A à diagonale strictement dominante
+\end{framed}
+\end{frame}
+
+\section{Implémentation}
+\subsection{Structures de données}
+
+\begin{frame}{Structures de données}
+
+\begin{itemize}
+    \item Matrices et vecteurs stockés comme tableaux
+    \item \texttt{matrix.c} et \texttt{vector.c} définissent les fonctions de création, destruction, affichage et chargement des données
+\end{itemize}
+
+\end{frame}
+
+\subsection{Parallélisation}
+
+\begin{frame}{Partage des données}
+
+Partage des \(n\) lignes entre les \(q\) processus.
+Avec un processus n\textdegree\(p\), en notant \(d = \lfloor \frac{n}{p} \rfloor\) et \(r = \text{mod}(n,p)\) :
+\begin{itemize}
+    \item Nombre de lignes:  \(d\) si \(p<r\), \(d+1\) sinon;
+    \item Sa première ligne est \(dp+\text{min}(r,p)\)
+    \item le processus contenant la ligne \(i\) est le n\textdegree\(\lfloor \frac{iq}{n} \rfloor\)
+\end{itemize}
+
+\end{frame}
+
+\begin{frame}{Parallélisation}
+
+\begin{itemize}
+    \item La parallélisation de \eqref{eq:rec} n'est a priori pas réalisable
+    \item chaque processus va contenir deux vecteurs :
+    \begin{itemize}
+        \item \lstinline{x_local} : lignes spécifiques au processus
+        \item \lstinline{x_global} : totalité du vecteur \(X^{(k)}\)
+    \end{itemize}
+    \item chaque itération commence par le partage des \lstinline{x_local} pour que chaque processus remplisse son \lstinline{x_global}
+    \item on peut ensuite calculer la nouvelle itération de \lstinline{x_local}
+\end{itemize}
+\end{frame}
+
+\subsection{Arrêt}
+
+\begin{frame}{Arrêt}
+Erreur commise : \(\epsilon_k = \|X^{(k)} - X \|_\infty\)
+
+En remarquant qu'en fin d'itération, \lstinline{x_local} correspond à \(X^{(k+1)}\) et \lstinline{x_global} à \(X^{(k)}\), on va plutôt calculer :
+\begin{align*}
+    \mu_k &= \| X^{(k+1)} - X^{(k)} \|_\infty \\
+    &= \| A^\prime X^{(k)} + X - A^\prime X- X^{(k)} \|_\infty \\
+    &= \| A^\prime (X^{(k)} - X) - ( X^{(k)} - X ) \|_\infty \\
+    \mu_k &\geq \left| \| A^\prime (X^{(k)} - X) \|_\infty - \epsilon_k \right| \\
+    \text{En utilisant } \rho(A^\prime) < 1\\
+    \mu_k &\geq \epsilon_k
+\end{align*}
+\end{frame}
+
+
+\begin{frame}{Arrêt}
+
+\begin{itemize}
+    \item à chaque coefficient
+\lstinline{x_local[i]} on associe un booléen \lstinline{residues[i]}
+    \item si \lstinline{residues[i] = false}, \(x^{(k+1)}_i = x^{(k)}_i\)
+    \item chaque processus vérifie
+si au moins une valeur de \lstinline{residues} est à \lstinline{true}
+    \item ce résultat est envoyé au process 0, qui combine le tout et répond un ordre de continuer ou d'arrêter \lstinline{run}
+\end{itemize}
+\end{frame}
+
+\subsection{Communication entre les processus}
+
+\begin{frame}{Communication entre les processus}
+Deux modèles de communication :
+\begin{itemize}
+\item synchrone, où chaque opération est bloquante. On utilise alors \lstinline{MPI_Send} et \lstinline{MPI_Recv}
+\item asynchrone, où les opérations
+de communications ne sont pas bloquantes, et l'on doit utiliser d'autres fonctions
+pour savoir lorsqu'elles ont eu lieu.
+Les fonctions sont \lstinline{MPI_Isend} et \lstinline{MPI_Irecv}.
+Pour resynchroniser les processus, on utilise \lstinline{MPI_Barrier}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Communication entre les processus}
+Trois modes possibles en fonction du 4e argument \lstinline{argv[4]}:
+\begin{itemize}
+\item 0 : synchrone
+\item 1 : asynchrone, avec \lstinline{MPI_Barrier}
+\item 2 : asynchrone, sans \lstinline{MPI_Barrier}. Dans ce cas le programme s'arrête après 5000 itérations.
+\end{itemize}
+\end{frame}
+
+\section{Résultats}
+
+\begin{frame}{Résultats}
+\begin{itemize}
+\item Exemples donnés de tailles 4, 20, 300, 5000
+\item Pour des petites tailles (\(n \leq 300\)) le temps d'exécution reste constant, quelque soit le nombre de processeurs, la taille, ou l'asynchronisme
+\item asynchrone, sans \lstinline{MPI_Barrier} pose de nombreux problèmes :
+\begin{itemize}
+    \item utilisation de la mémoire énorme, dûes aux nombreuses requêtes en cours mais non finies
+    \item le calcul est plus rapide que les requêtes, et à chaque itération les coefficients ne sont donc pas correctements mis à jour. Le vecteur semble tout de même commencer à converger.
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\end{document}
