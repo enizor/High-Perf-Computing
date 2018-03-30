@@ -40,7 +40,7 @@
 \usepackage{amsmath}
 \usepackage{hyperref}
 \usepackage{textcomp}
-% \usepackage{times}
+\usepackage{times}
 % Margins
 % \topmargin=-0.45in
 \evensidemargin=0.25in
@@ -71,29 +71,6 @@
 
 \lstloadlanguages{C} % Load Perl syntax for listings, for a list of other languages supported see: ftp://ftp.tex.ac.uk/tex-archive/macros/latex/contrib/listings/listings.pdf
 \lstset{texcl=true, columns=flexible,basicstyle=\ttfamily}
-
-\lstdefinestyle{ccode}{language=C, % Use Perl in this example
-        frame=single, % Single frame around code
-        basicstyle=\ttfamily, % Use true type font
-        keywordstyle=[1]\color{Blue}, % Perl functions bold and blue
-        keywordstyle=[2]\color{Green}, % Perl function arguments purple
-        keywordstyle=[3]\color{Blue}, % Custom functions underlined and blue
-        identifierstyle=, % Nothing special about identifiers
-        commentstyle=\small\color{Brown}, % Comments small dark green courier font
-        stringstyle=\color{OliveGreen}, % Strings are purple
-        showstringspaces=false, % Don't put marks in string spaces
-        tabsize=5, % 2 spaces per tab
-        %
-        % Put standard Perl functions not included in the default language here
-        morekeywords={f, sequantial_computation, parallel_computation, printf},
-        morecomment=[l][\color{Blue}]{...}, % Line continuation (...) like blue comment
-        numbers=left, % Line numbers on left
-        firstnumber=1, % Line numbers start with line 1
-        numberstyle=\tiny\color{Blue}, % Line numbers are blue and small
-        stepnumber=5, % Line numbers go in steps of 5
-        texcl=true,
-        columns=flexible
-}
 
 % Creates a new command to include a perl script, the first parameter is the filename of the script (without .pl), the second parameter is the caption
 \newcommand{\cscript}[2]{
@@ -204,7 +181,7 @@ ce qui donne:
     X = D^{-1} (B-RX)
 \end{equation}
 
-Nous pouvons ensuite poser la suite $X^{(k)}, n \in \mathds{N}$ définie comme suit:
+Nous pouvons ensuite poser la suite $X^{(k)}, k \in \mathds{N}$ définie comme suit:
 
 \[
 \left\{
@@ -259,11 +236,11 @@ Soit \( \lambda \) une valeur propre de \( A^\prime \) et \( Y = (y_i) \)
 un vecteur propre associé.
 \( A^\prime Y = \lambda Y \) donne donc pour tout \(i\) :
 \begin{align*}
-    \|\lambda Y\|_\infty &= | \sum_j a^\prime_{ij} y_j | \\
-    |\lambda| \cdot\| Y\|_\infty &= | \sum_{j \neq i} \frac{-a_{ij}}{a_{ii}} y_j | \\
-    |\lambda| \cdot\| Y\|_\infty &= |\frac{1}{a_{ii}}| \cdot | \sum_{j \neq i} -a_{ij} y_j| \\
-    |\lambda| \cdot\| Y\|_\infty &\leq |\frac{1}{a_{ii}}| \sum_{j \neq i} |a_{ij} y_j|\\
-    |\lambda| \cdot\| Y\|_\infty &\leq |\frac{1}{a_{ii}}| \sum_{j \neq i} |a_{ij}| \cdot\| Y\|_\infty
+    \|\lambda Y\|_\infty &= \max_{i}| \sum_j a^\prime_{ij} y_j | \\
+    |\lambda| \cdot\| Y\|_\infty &= \max_{i} | \sum_{j \neq i} \frac{-a_{ij}}{a_{ii}} y_j | \\
+    |\lambda| \cdot\| Y\|_\infty &= \max_{i} |\frac{1}{a_{ii}}| \cdot | \sum_{j \neq i} -a_{ij} y_j| \\
+    |\lambda| \cdot\| Y\|_\infty &\leq \max_{i}|\frac{1}{a_{ii}}| \sum_{j \neq i} |a_{ij} y_j|\\
+    |\lambda| \cdot\| Y\|_\infty &\leq \max_{i}|\frac{1}{a_{ii}}| \sum_{j \neq i} |a_{ij}| \cdot\| Y\|_\infty
 \end{align*}
 
 Or, pour toute matrice \( M = (m_{ij}) \) à diagonale strictement dominante :
@@ -279,7 +256,7 @@ Ainsi, si \( A \) est diagonale strictement dominante, alors son rayon spectral 
 J'ai choisi de représenter mes matrices et vecteurs de façon très simple :
 des tableaux de \lstinline{double} et des entiers présentant les dimensions du tableau.
 Les deux fichiers les implémentant, \texttt{matrix.c} et \texttt{vector.c} sont donc très similaires.
-Ils contiennent des fonctions très simples pour la création, destruction et l'affichage de leur données, ainsi qu'une fonction leur permettant la création depuis un fichier. Cette dernière ne va charger qu'une partie de la matrice ou du vecteur pour limiter l'utilisation de mémoire.
+Ils contiennent des fonctions très simples pour la création, destruction et l'affichage de leur données, ainsi qu'une fonction leur permettant le chargement depuis un fichier. Cette dernière ne va charger qu'une partie de la matrice ou du vecteur pour limiter l'utilisation de mémoire.
 
 \bigskip
 Cette structure de données n'est pas idéale pour les matrices, car dans les cas réels elles seront creuses, diminuant de beaucoup l'efficacité mémoire.
@@ -306,7 +283,7 @@ Cela correspond aux variables \lstinline{num_rows} et
 
 Bien sûr, une telle séparation n'est a priori pas réalisable, le calcul de \(x_i\) dépendant des \(x_j, j \neq i\).
 Pour y remédier, chaque processus va contenir deux vecteurs : \lstinline{x_local} et \lstinline{x_global}.
-Le premier correspond aux lignes spécifiques aux processus, le deuxième à la totalité du vecteur \(X^{(k)}\).
+Le premier correspond aux lignes spécifiques au processus, le deuxième à la totalité du vecteur \(X^{(k)}\).
 Lors de chaque itérations, les processus commencent par envoyer à chacun leurs valeurs dans leur \lstinline{x_local}.
 Tous les processus remplissent alors \lstinline{x_global}, ce qui leur permet de calculer la nouvelle itération de \lstinline{x_local}.
 Il ne reste plus qu'à répéter cette opération jusqu'à ce qu'on soit satisfait de l'approximation de \(X\) obtenue.
@@ -383,7 +360,7 @@ il suffit de rajouter un \lstinline{MPI_Barrier} après le bloc d'envoi et de r�
 Chaque processus va alors créer ses requêtes, chacun à sa vitesse, puis s'arrêter sur le \lstinline{MPI_Barrier} jusqu'à ce que tous les processus y soient.
 Alors le process reprendra son cours.
 
-Dans le code, le choix du mode de communication se fait en fonction du 5e argument \lstinline{argv[5]} : 0 pour synchrone, 1 pour asynchrone, 2 pour asynchrone et enlever les \lstinline{MPI_Barrier}.
+Dans le code, le choix du mode de communication se fait en fonction du 4e argument \lstinline{argv[4]} : 0 pour synchrone, 1 pour asynchrone, 2 pour asynchrone et enlever les \lstinline{MPI_Barrier}.
 Dans ce dernier cas, on va overrider les résidus : en effet si aucun des messages n'a été transmis, \(X^{(k+1)} = X^{(k)} \) et l'on arrêtera d'itérer dessus.
 Le programme stoppera quand il atteindra la limite d'itérations, 5000.
 Un \lstinline{MPI_Barrier} à ce moment récupèrera les requête perdues.
@@ -421,6 +398,6 @@ L'impact mémoire, de quelques centaines de Mo, est pour la première fois sensi
 
 Utiliser l'asynchrone sans \lstinline{MPI_Barrier} ne marche pas très bien.
 On s'aperçoit que quelques coefficients sont itérés, mais pas tous.
-Je suppose que le programme itère plus vite que MPI parvient à faire les requêtes.
+Je suppose que le programme itère plus vite que MPI parvient à faire les requêtes, les coefficients ne sont donc pas correctements mis à jour.
 Je pense donc que même dans ce cas, l'algorithme converge au temps (beaucoup plus) long.
 \end{document}
